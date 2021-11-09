@@ -1,4 +1,4 @@
-# Izvještaj laboraotrijskih vježbi
+# Izvještaj laboratorijskih vježbi
 
 # 1. Laboratorijska vježba
 
@@ -69,7 +69,21 @@ $ ifconfig -a
 ```
 
 ```
-eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500        inet 172.24.0.2  netmask 255.255.0.0  broadcast 172.24.255.255        ether 02:42:ac:18:00:02  txqueuelen 0  (Ethernet)        RX packets 68  bytes 8291 (8.2 KB)        RX errors 0  dropped 0  overruns 0  frame 0        TX packets 0  bytes 0 (0.0 B)        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536        inet 127.0.0.1  netmask 255.0.0.0        loop  txqueuelen 1000  (Local Loopback)        RX packets 0  bytes 0 (0.0 B)        RX errors 0  dropped 0  overruns 0  frame 0        TX packets 0  bytes 0 (0.0 B)        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet 172.24.0.2  netmask 255.255.0.0  broadcast 172.24.255.255
+        ether 02:42:ac:18:00:02  txqueuelen 0  (Ethernet)
+        RX packets 68  bytes 8291 (8.2 KB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 0  bytes 0 (0.0 B)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
+        inet 127.0.0.1  netmask 255.0.0.0
+        loop  txqueuelen 1000  (Local Loopback)
+        RX packets 0  bytes 0 (0.0 B)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 0  bytes 0 (0.0 B)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
 ```
 
 Informacije koje dobivamo su:
@@ -277,4 +291,171 @@ def paralelize_attack():
 
 if __name__ == "__main__":
     paralelize_attack()
+```
+
+# 3. Laboratorijska vježba
+
+9.11.2021.
+
+## Zadatak 1
+
+Kreirati tekstualnu datoteku zaštićenog integriteta pomoću HMAC mehanizma i Python biblioteke `cryptography`.
+
+## Rješenje
+
+1. Kreiramo file sa porukom koju treba zaštitit. Pročitamo poruku iz filea te je ispisujemo u standardni izlaz.
+
+```python
+from cryptography.hazmat.primitives import hashes
+
+def main():
+    with open("./message.txt", "rb") as file:
+        content = file.read()
+        print(content)
+
+if __name__ == "__main__":
+    main()
+```
+
+1. Kreiramo funkciju za izračun MAC koda. Potrebno je prethodno definirati ključ kojeg koristimo.
+
+```python
+from cryptography.hazmat.primitives import hashes, hmac
+
+def generate_MAC(key, message):
+    if not isinstance(message, bytes):
+        message = message.encode()
+
+    h = hmac.HMAC(key, hashes.SHA256())
+    h.update(message)
+    signature = h.finalize()
+    return signature
+```
+
+1. Modificiramo `main` funkciju. Kreiramo MAC kod pomoću prethodno definirane funkcije.
+
+```python
+def main():
+    secret = b"My super secret"
+    
+    with open("./message.txt", "rb") as file:
+        content = file.read()
+    
+    mac = generate_MAC(secret, content)
+    print(mac.hex())
+```
+
+1. Zapisujemo generirani MAC u novi file `message.sig`
+
+```python
+with open("./message.sig", "wb") as file:
+        file.write(mac)
+```
+
+1. Kreiramo funkciju za validaciju MAC koda
+
+```python
+def is_mac_valid(key, message, mac):
+    if not isinstance(message, bytes):
+        message = message.encode()
+
+    h = hmac.HMAC(key, hashes.SHA256())
+    h.update(message)
+    try:
+        h.verify(mac)
+    except InvalidSignature:
+        return False
+    else:
+        return True
+```
+
+1. U funkciju main dodajemo kod za validaciju MACa 
+
+```python
+with open("./message.sig", "rb") as file:
+        mac = file.read()
+
+    if is_mac_valid(secret, content, mac):
+        print("MEK je validan")
+    else:
+        print("Zivot je tuga")
+```
+
+## Zadatak 2
+
+Downloadamo folder sa MAC challengeovima. U njemu se nalazi 10 teksutalnih fileova sa "nalozima za kupnju dionica". Svaki file ima kreirani MAC. Prilikom slanja poruka netko je narušio njihovu sigurnost. Cilj je odrediti ispravnu sekvenciju transakcija autenticnih poruka. 
+
+Ključ korišten pri kreiranju MACova napravljen je na idući naćin.
+
+```python
+key = "<prezime_ime>".encode()t
+```
+
+## Rješenje
+
+```python
+import os
+from pprint import pprint
+from datetime import datetime
+
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import hashes, hmac
+
+def is_mac_valid(key, message, mac):
+    if not isinstance(message, bytes):
+        message = message.encode()
+
+    h = hmac.HMAC(key, hashes.SHA256(), None)
+    h.update(message)
+    try:
+        h.verify(mac)
+    except InvalidSignature:
+        return False
+    else:
+        return True
+
+def read_orders_and_macs(directory):
+    orders_and_macs = {}
+
+    for index in range(1, 10):
+        order_text_file_route = os.path.join(directory, f"order_{index}.txt")
+        order_mac_file_route = os.path.join(directory, f"order_{index}.sig")
+
+        order_text_file = open(order_text_file_route, "rb")
+        order_mac_file = open(order_mac_file_route, "rb")
+
+        orders_and_macs[order_text_file.read()] = order_mac_file.read()       
+
+        order_text_file.close()
+        order_mac_file.close()
+
+    return orders_and_macs
+
+def extract_order_datetime(order):
+    open_bracket_pos = order.index("(") + 1
+    close_bracket_pos = order.index(")")
+
+    date_string = order[open_bracket_pos:close_bracket_pos]
+    return datetime.strptime(date_string, "%Y-%m-%dT%H:%M")
+
+def main():
+    key = "bartulovic_josip".encode()
+
+    orders_and_macs = read_orders_and_macs("mac_challenge")
+    valid_orders = []
+
+    for order, mac in orders_and_macs.items():
+        if is_mac_valid(key, order, mac):
+            valid_orders.append(order.decode("utf-8"))
+
+    sorted_valid_orders = sorted(
+        valid_orders,
+        key=lambda order: extract_order_datetime(order),
+    )
+
+    pprint(sorted_valid_orders)
+
+if __name__ == "__main__":
+    main()
 ```
