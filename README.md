@@ -567,14 +567,11 @@ Rezultati dobiveni iz eksperimenta:
 
 Zaključujemo da što više iterativnih heširanja primjenimo nad istim podatkom to će brute forceanje datih podataka biti teže.
 
-Primjerice ako imamo dictionary od 10 000 razlicitih mogućih šifri, a šifre pohranjenje u našoj bazi su iterativno hashirane Linux CRYPT algoritmom 10 000 puta, za proći kroz cijelu biblioteku trebat će nam $0.010228 * 10000s = 102.28 s$ to jest $1.5 min$.
+Primjerice ako imamo dictionary od 10 000 razlicitih mogućih šifri, a šifre pohranjenje u našoj bazi su iterativno hashirane Linux CRYPT algoritmom 10 000 puta, za proći kroz cijelu biblioteku trebat će nam 0.010228 * 10000s = 102.28 s to jest 1.5 min.
 
-A ako iterativno hashiramo Linux CRYPT algoritmom 5 000 puta trebat će nam $0.85min$.
+A ako iterativno hashiramo Linux CRYPT algoritmom 5 000 puta trebat će nam 0.85min.
 
-<aside>
 ❗ Prilikom odabira algoritma i broja iteracija potrebno je odvagati važnost “user experienca” i sigurnosti podataka. Što više puta iterativno hashiramo korisnikovu šifru, to će prilikom autentikacije korisnika on trebat dulje čekati da bi dobio potvrdu o prijavi.
-
-</aside>
 
 ```python
 from os import urandom
