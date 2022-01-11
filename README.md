@@ -731,3 +731,105 @@ if __name__ == "__main__":
         table.add_row([name, average_time])
         print(f"{table}\n\n")
 ```
+
+# 5. Laboratorijska vježba
+
+21.12.2021
+
+## Online password guessing
+
+Koristeći alat `nmap` skeniramo mrežnu masku `10.0.15.0/28` i dobivamo izlist otvorenih portova na pojedinim ip adresama pokrivenim mrežnom maskom.
+
+```
+Nmap (“Network Mapper”) is an open source tool for network exploration
+       and security auditing. It was designed to rapidly scan large networks,
+       although it works fine against single hosts. Nmap uses raw IP packets
+       in novel ways to determine what hosts are available on the network,
+       what services (application name and version) those hosts are offering,
+       what operating systems (and OS versions) they are running, what type of
+       packet filters/firewalls are in use, and dozens of other
+       characteristics. While Nmap is commonly used for security audits, many
+       systems and network administrators find it useful for routine tasks
+       such as network inventory, managing service upgrade schedules, and
+       monitoring host or service uptime.
+```
+
+To činimo pomoću komande
+
+```bash
+nmap -v 10.0.15.0/28
+```
+
+Pronalazimo otvoren ssh port na serveru `10.0.15.1`. Saznajemo da je username na serveru koji se vrti unutar docker containera jednak `<prezime_ucenika>_<ime_ucenika>`. Jedino sto nam sada fali da bi dobili ssh pristup mašini je korisnička šifra.
+
+Za to koristimo alat pod imenom `hydra`pomoću kojeg ćemo izvest **online password guessing attack**.
+
+```
+Hydra is a parallelized login cracker which supports numerous protocols to attack. New modules are easy to add, beside that,
+       it is flexible and very fast.
+
+       This tool gives researchers and security consultants the possibility to show how easy it would be to gain  unauthorized  ac‐
+       cess from remote to a system.
+```
+
+Uz pretpostavku da je šifra duljine 4-6 slova i sadrži samo mala slova engleske abecede napad pokrećemo pomoću komande.
+
+```bash
+# hydra -l <username> -x 4:6:a <your IP address> -V -t 1 ssh
+
+hydra -l bartulovic_josip -x 4:6:a 10.0.15.1 -V -t 1 ssh
+```
+
+Password space ovakve šifre je veličine $26^4 + 26^5 + 26^6 \approx 3*10^8$.
+
+Zbog brzine provjeravanja pojedine šifre ssh tunela ovakav pristup probivanju šifre jako je neučinkovit.
+
+Zbog toga je potrebno smanjit password space koristeći rječnik šifri sastavljen iz prethodnog password spacea za koje je najvjerojatnije da ih netko iskoristi.
+
+Rječnik nalazimo na serveru [http://a507-server.local:8080/](http://a507-server.local:8080/) i downloadamo ga komandom:
+
+```bash
+# For GROUP 1 (g1)
+wget -r -nH -np --reject "index.html*" http://a507-server.local:8080/dictionary/g4/
+```
+
+Napad pomoću rječnika pokrećemo komandom:
+
+```bash
+# hydra -l <username> -P dictionary/<group ID>/dictionary_online.txt 10.0.15.1 -V -t 4 ssh
+hydra -l bartulovic_josip -P dictionary/g4/dictionary_online.txt 10.0.15.1 -V -t 4 ssh
+```
+
+**Pronađena šifra glasi: `ouriom`**
+
+## Offline password guessing
+
+Pomoću pronađene šifre prijavljujemo se na server. Otkrivamo da računalo u koje smo provalili ima nekoliko različitih korisnika čiji se hashevi šifra nalaze u dokumentu `etc/shadow`.
+
+Odabiremo jednog korisnika i preuzimamo njegov password hash.
+
+Koristeći alat `hashcat` pokrećeno offline password guessing attack.
+
+```
+Hashcat is the world’s fastest CPU-based password recovery tool.
+
+While it's not as fast as its GPU counterpart oclHashcat, large 
+lists can be easily split in half with a good dictionary and a bit 
+of knowledge of the command switches.
+```
+
+Poznato nam je da je šifra duljina 6 znakova i sastavljena je od samo malih slova engleske abecede.
+
+```bash
+# hashcat --force -m 1800 -a 3 <password_hash_file> ?l?l?l?l?l?l --status --status-timer 10
+hashcat --force -m 1800 -a 3 hash.txt ?l?l?l?l?l?l --status --status-timer 10
+```
+
+Ovakav napad puno se brže se izvršava od online password napada bez korištenja rječnika i moguće ga je izvršit u realnom vremenu.
+
+Međutim ako ga želimo dodatno ubrzat možemo ponovno preuzet rječnik sa mogućim šiframa i pomoću hashcata otkriti koji niz znakova je točno hashiran.
+
+```bash
+# hashcat --force -m 1800 -a 0 <password_hash_file> <dictionary_file> --status --status-timer 10
+hashcat --force -m 1800 -a 0 hash.txt dictionary/g1/dictionary_offline.txt --status --status-timer 10
+```
